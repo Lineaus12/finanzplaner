@@ -1,0 +1,65 @@
+# ==============================================
+# .htaccess — Sicherheitskonfiguration für IONOS
+# In den public_html Ordner legen
+# ==============================================
+
+# Passenger WSGI aktivieren
+PassengerEnabled On
+PassengerStartupFile passenger_wsgi.py
+PassengerAppType wsgi
+
+# -----------------------------------------------
+# SCHUTZ: Sensible Dateien blockieren
+# -----------------------------------------------
+
+# .env Dateien niemals ausliefern
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files ".env.example">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Python-Dateien schützen (werden über WSGI ausgeführt, nicht direkt)
+<FilesMatch "\.(py|pyc|db|sqlite|sqlite3)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# requirements.txt verstecken
+<Files "requirements.txt">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# -----------------------------------------------
+# HTTPS erzwingen
+# -----------------------------------------------
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# -----------------------------------------------
+# Security Headers
+# -----------------------------------------------
+<IfModule mod_headers.c>
+    # Verhindert Clickjacking
+    Header always set X-Frame-Options "DENY"
+
+    # Verhindert MIME-Type Sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # XSS Schutz
+    Header always set X-XSS-Protection "1; mode=block"
+
+    # Referrer Policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# -----------------------------------------------
+# Directory Listing deaktivieren
+# -----------------------------------------------
+Options -Indexes
