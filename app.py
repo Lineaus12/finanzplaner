@@ -39,15 +39,56 @@ CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
 # Schneller und stabiler.
 # ==============================================
 
+# ==============================================
+# DATENBANK-VERBINDUNG
+#
+# Railway gibt uns eine MYSQL_URL im Format:
+# mysql://user:passwort@host:port/datenbankname
+#
+# Wir parsen diese URL automatisch.
+# Lokal kann man auch einzelne DB_* Variablen nutzen.
+# ==============================================
+
+import urllib.parse
+
+def parse_db_config():
+    # Option 1: Railway URL (wird automatisch gesetzt)
+    url = (
+        os.environ.get('MYSQL_URL') or
+        os.environ.get('MYSQL_PRIVATE_URL') or
+        os.environ.get('DATABASE_URL') or
+        os.environ.get('MYSQL_PUBLIC_URL')
+    )
+    if url:
+        # URL aufteilen: mysql://root:passwort@host:3306/datenbankname
+        parsed = urllib.parse.urlparse(url)
+        return {
+            'host':     parsed.hostname,
+            'port':     parsed.port or 3306,
+            'database': parsed.path.lstrip('/'),
+            'user':     parsed.username,
+            'password': parsed.password or '',
+        }
+    # Option 2: Einzelne Variablen (lokal)
+    return {
+        'host':     os.environ.get('DB_HOST')     or os.environ.get('MYSQLHOST',     'localhost'),
+        'port':     int(os.environ.get('DB_PORT') or os.environ.get('MYSQLPORT',     3306)),
+        'database': os.environ.get('DB_NAME')     or os.environ.get('MYSQLDATABASE', 'finanzplaner'),
+        'user':     os.environ.get('DB_USER')     or os.environ.get('MYSQLUSER',     'root'),
+        'password': os.environ.get('DB_PASSWORD') or os.environ.get('MYSQLPASSWORD', ''),
+    }
+
+db_config = parse_db_config()
+
 db_pool = pooling.MySQLConnectionPool(
     pool_name="finanzplaner_pool",
-    pool_size=5,                    # max 5 gleichzeitige Verbindungen
-    host=os.environ.get('DB_HOST', 'localhost'),
-    port=int(os.environ.get('DB_PORT', 3306)),
-    database=os.environ.get('DB_NAME', 'finanzplaner'),
-    user=os.environ.get('DB_USER', 'root'),
-    password=os.environ.get('DB_PASSWORD', ''),
-    charset='utf8mb4',              # Volle Unicode-Unterstützung (auch Emojis)
+    pool_size=5,
+    host=db_config['host'],
+    port=db_config['port'],
+    database=db_config['database'],
+    user=db_config['user'],
+    password=db_config['password'],
+    charset='utf8mb4',
     collation='utf8mb4_unicode_ci',
     autocommit=False,
 )
